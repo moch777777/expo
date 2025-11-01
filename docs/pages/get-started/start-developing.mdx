@@ -1,97 +1,123 @@
----
-title: Start developing
-description: Make your first change to an Expo project and see it live on your device.
-hideTOC: true
----
+// App.js
+import React, { useState, useEffect } from "react";
+import { SafeAreaView, Text, TextInput, Button, FlatList } from "react-native";
 
-import { ProjectStructure } from '~/scenes/get-started/start-developing/ProjectStructure';
-import { TemplateFeatures } from '~/scenes/get-started/start-developing/TemplateFeatures';
-import { Collapsible } from '~/ui/components/Collapsible';
-import { ContentSpotlight } from '~/ui/components/ContentSpotlight';
-import { Terminal, DiffBlock } from '~/ui/components/Snippet';
-import { Step } from '~/ui/components/Step';
+const fakeAccounts = [
+  { id: '1', name: 'Girokonto', balance: 124.50, currency: 'EUR' },
+  { id: '2', name: 'Sparbuch', balance: 500.00, currency: 'EUR' },
+];
 
-<Step label="1">
-## Start a development server
-To start the development server, run the following command:
+export default function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-<Terminal cmd={['$ npx expo start']} />
+  if(!loggedIn){
+    return (
+      <SafeAreaView style={{padding:20}}>
+        <Text style={{fontSize:24}}>Login Revo24</Text>
+        <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={{borderWidth:1,marginVertical:10,padding:8}}/>
+        <TextInput placeholder="Passwort" value={password} secureTextEntry onChangeText={setPassword} style={{borderWidth:1,marginVertical:10,padding:8}}/>
+        <Button title="Login" onPress={()=>setLoggedIn(true)} />
+      </SafeAreaView>
+    )
+  }
 
-</Step>
+  return (
+    <SafeAreaView style={{padding:20}}>
+      <Text style={{fontSize:24, marginBottom:10}}>Willkommen bei Revo24!</Text>
+      <FlatList
+        data={fakeAccounts}
+        keyExtractor={item=>item.id}
+        renderItem={({item})=>(
+          <Text style={{fontSize:18, marginVertical:5}}>{item.name}: {item.balance} {item.currency}</Text>
+        )}
+      />
+      <Button title="Logout" onPress={()=>setLoggedIn(false)}/>
+    </SafeAreaView>
+  )
+}
+// App.js
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView, Text, TextInput, Button, FlatList, Alert } from 'react-native';
 
-<Step label="2">
-## Open the app on your device
+const SERVER = 'http://localhost:3000'; // später Cloud-Server
 
-After running the command above, you will see a QR code in your terminal. Scan this QR code to open the app on your device.
+export default function App() {
+  const [userId,setUserId] = useState(null);
+  const [email,setEmail] = useState('');
+  const [password,setPassword] = useState('');
+  const [accounts,setAccounts] = useState([]);
+  const [transactions,setTransactions] = useState([]);
+  const [selectedAccount,setSelectedAccount] = useState(null);
 
-If you're using an Android Emulator or iOS Simulator, you can press <kbd>a</kbd> or <kbd>i</kbd> respectively to open the app.
+  // Login
+  const login = async()=>{
+    try{
+      const res = await fetch(`${SERVER}/login`,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
+      const data = await res.json();
+      if(data.success){
+        setUserId(data.userId);
+        fetchAccounts(data.userId);
+      } else Alert.alert('Login fehlgeschlagen');
+    }catch(e){ Alert.alert('Fehler', e.message);}
+  };
 
-<Collapsible summary="Having problems?">
+  const fetchAccounts = async(uid)=>{
+    const res = await fetch(`${SERVER}/accounts/${uid}`);
+    const data = await res.json();
+    setAccounts(data);
+    if(data[0]) selectAccount(data[0]);
+  }
 
-Make sure you are on the same Wi-Fi network on your computer and your device.
+  const selectAccount = async(account)=>{
+    setSelectedAccount(account);
+    const res = await fetch(`${SERVER}/transactions/${account.id}`);
+    const txs = await res.json();
+    setTransactions(txs);
+  }
 
-If it still doesn't work, it may be due to the router configuration &mdash; this is common for public networks. You can work around this by choosing the **Tunnel** connection type when starting the development server, then scanning the QR code again.
+  const transferDemo = async()=>{
+    const amount = 5; // Demo
+    const res = await fetch(`${SERVER}/transfer`,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fromAccountId:selectedAccount.id,toAccount:'demo',amount})});
+    const data = await res.json();
+    if(data.success){
+      Alert.alert('Überweisung erfolgreich', `Neuer Kontostand: ${data.newBalance} EUR`);
+      fetchAccounts(userId);
+    }
+  }
 
-<Terminal cmd={['$ npx expo start --tunnel']} />
+  if(!userId){
+    return (
+      <SafeAreaView style={{padding:20}}>
+        <Text style={{fontSize:24}}>Revo24 Login</Text>
+        <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={{borderWidth:1,margin:5,padding:8}}/>
+        <TextInput placeholder="Passwort" value={password} secureTextEntry onChangeText={setPassword} style={{borderWidth:1,margin:5,padding:8}}/>
+        <Button title="Login" onPress={login}/>
+      </SafeAreaView>
+    )
+  }
 
-> Using the **Tunnel** connection type will make the app reloads considerably slower than on **LAN** or **Local**, so it's best to avoid tunnel when possible. You may want to install and use an emulator or simulator to speed up development if **Tunnel** is required to access your machine from another device on your network.
-
-</Collapsible>
-
-</Step>
-
-<Step label="3">
-
-## Make your first change
-
-Open the **app/(tabs)/index.tsx** file in your code editor and make a change.
-
-<DiffBlock
-  raw={`diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
-index 45cfa0e..4d1b384 100644
---- a/app/(tabs)/index.tsx
-+++ b/app/(tabs)/index.tsx
-@@ -17,7 +17,7 @@ export default function HomeScreen() {
+  return (
+    <SafeAreaView style={{padding:20}}>
+      <Text style={{fontSize:24}}>Willkommen bei Revo24!</Text>
+      <Text style={{marginVertical:10}}>Konten:</Text>
+      <FlatList
+        data={accounts}
+        keyExtractor={item=>item.id}
+        renderItem={({item})=>(
+          <Text style={{fontSize:18}} onPress={()=>selectAccount(item)}>{item.name}: {item.balance} {item.currency}</Text>
+        )}
+      />
+      {selectedAccount &&
+        <>
+          <Text style={{marginTop:10, fontSize:20}}>Transaktionen für {selectedAccount.name}</Text>
+          <FlatList
+            data={transactions}
+            keyExtractor={item=>item.id}
+            renderItem={({item})=><Text>{item.date}: {item.amount} EUR - {item.description}</Text>}
+          />
+          <Button title="Demo-Überweisung 5€" onPress={transferDemo}/>
+        </>
       }
-    >
-      <ThemedView style={styles.titleContainer}>
--       <ThemedText type="title">Welcome!</ThemedText>
-+       <ThemedText type="title">Hello World!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-  `}
-/>
-
-<Collapsible summary="Changes not showing up on your device?">
-
-Expo Go is configured by default to automatically reload the app whenever a file is changed, but let's make sure to go over the steps to enable it in case somehow things aren't working.
-
-- Make sure you have the [development mode enabled in Expo CLI](/workflow/development-mode#development-mode).
-- Close the Expo app and reopen it.
-- Once the app is open again, shake your device to reveal the developer menu. If you are using an emulator, press <kbd>Ctrl</kbd> + <kbd>M</kbd> for Android or <kbd>Cmd ⌘</kbd> + <kbd>D</kbd> for iOS.
-- If you see **Enable Fast Refresh**, press it. If you see **Disable Fast Refresh**, dismiss the developer menu. Now try making another change.
-
-  <ContentSpotlight
-    alt="Developer menu in Expo Go app."
-    src="/static/images/get-started/developer-menu.png"
-    className="max-w-[540px]"
-  />
-
-</Collapsible>
-
-</Step>
-
----
-
-## File structure
-
-Below, you can get familiar with the default project's file structure:
-
-<ProjectStructure />
-
-## Features
-
-The default project template has the following features:
-
-<TemplateFeatures />
+      <Button title="Logout" onPress={()=>{setUserId(null); setAccounts([]); setTransactions([])}}/>
